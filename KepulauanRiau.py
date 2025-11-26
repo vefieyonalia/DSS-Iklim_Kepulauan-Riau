@@ -1,231 +1,111 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
-import plotly.express as px
-from sklearn.model_selection import train_test_split
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.metrics import mean_squared_error, r2_score
+import matplotlib.pyplot as plt
 
-# ================== PAGE CONFIG =======================
-st.set_page_config(page_title="🌤️ Prediksi Iklim Kepulauan Riau", layout="wide")
-
-# ================== SOFT BLUE AESTHETIC CSS =======================
+# ================================
+# 🎨 CUSTOM THEME WARNA COKLAT MUDA
+# ================================
 st.markdown("""
     <style>
-
-    .main {
-        background-color: #E8F4FF !important;
+    /* Background utama */
+    .stApp {
+        background-color: #F5E6D3; /* Beige / coklat muda lembut */
     }
 
-    [data-testid="stSidebar"] {
-        background-color: #D6ECFF !important;
+    /* Sidebar */
+    section[data-testid="stSidebar"] {
+        background-color: #E8D3B8 !important;
+        border-right: 2px solid #D6C1A1;
     }
 
-    .main-title {
-        font-size: 42px !important;
-        font-weight: 700 !important;
-        color: #2A6F97 !important;
-        text-align: center;
-        padding-bottom: 6px;
+    /* Container isi */
+    .block-container {
+        background-color: #FAF3E7;
+        padding: 2rem 2rem;
+        border-radius: 15px;
+        border: 1px solid #E0CBB0;
     }
 
-    .subtitle {
-        font-size: 19px;
-        color: #468FAF;
-        text-align: center;
-        margin-top: -10px;
-        margin-bottom: 20px;
+    /* Judul */
+    h1, h2, h3 {
+        color: #5C3B1E;
+        font-weight: 700;
     }
 
-    /* Card Statistik */
-    .metric-card {
-        background-color: #FFFFFF;
-        padding: 20px;
-        border-radius: 16px;
-        box-shadow: 0px 4px 12px rgba(0,0,0,0.06);
-        border-left: 6px solid #61A5C2;
-        text-align: center;
-        margin-bottom: 15px;
+    /* Text umum */
+    p, label, span {
+        color: #4E3A28 !important;
     }
 
-    h4 {
-        color: #1B4965;
-        margin-bottom: -5px;
+    /* Tombol */
+    .stButton>button {
+        background-color: #C9A77C;
+        color: white;
+        border-radius: 10px;
+        border: 1px solid #A4835B;
+        padding: 0.6rem 1rem;
+        font-size: 16px;
     }
 
+    .stButton>button:hover {
+        background-color: #B8936B;
+        border-color: #8A6A4C;
+    }
+
+    /* Input box */
+    .stTextInput>div>div input,
+    .stSelectbox div[data-baseweb="select"] {
+        background-color: #FAF3E7 !important;
+        border-radius: 8px !important;
+        border: 1px solid #D6C1A1 !important;
+        color: #4E3A28 !important;
+    }
     </style>
 """, unsafe_allow_html=True)
 
-
-# ================== TITLE =======================
-st.markdown("""
-<h1 class="main-title">🌤️ Dashboard Analisis & Prediksi Iklim — Kepulauan Riau</h1>
-<p class="subtitle">Visualisasi historis, eksplorasi variabel iklim, dan prediksi jangka panjang dengan tema soft blue aesthetic.</p>
-""", unsafe_allow_html=True)
-
-
-# ================== LOAD DATA =======================
+# ================================
+# 📂 Fungsi Load Data
+# ================================
 @st.cache_data
 def load_data():
-    df = pd.read_excel("KEPRI.xlsx", sheet_name="Data Harian - Table")
-    df = df.loc[:, ~df.columns.duplicated()]
-    if "kecepatan_angin" in df.columns:
-        df = df.rename(columns={"kecepatan_angin": "FF_X"})
-    df["Tanggal"] = pd.to_datetime(df["Tanggal"], dayfirst=True)
-    df["Tahun"] = df["Tanggal"].dt.year
-    df["Bulan"] = df["Tanggal"].dt.month
+    df = pd.read_excel("Data.xlsx", sheet_name="Data Harian - Table")
     return df
+
+# ================================
+# 🧊 Sidebar
+# ================================
+st.sidebar.title("📁 Menu Navigasi")
+menu = st.sidebar.selectbox(
+    "Pilih Halaman:",
+    ["Dashboard", "Visualisasi", "Statistik"]
+)
+
+# ================================
+# 📊 MAIN PAGE
+# ================================
+st.title("📊 Dashboard Iklim — Kepulauan Riau (Tema Coklat Muda Estetik)")
 
 df = load_data()
 
+if menu == "Dashboard":
+    st.subheader("Ringkasan Data")
+    st.write(df.head())
 
-# ================== SIDEBAR =======================
-st.sidebar.header("🔍 Filter Data")
+    st.write("Jumlah Data:", len(df))
 
-selected_year = st.sidebar.multiselect(
-    "Pilih Tahun", sorted(df["Tahun"].unique()), default=df["Tahun"].unique()
-)
+elif menu == "Visualisasi":
+    st.subheader("Visualisasi Curah Hujan")
 
-selected_month = st.sidebar.multiselect(
-    "Pilih Bulan", range(1, 13), default=range(1, 13)
-)
+    kolom = st.selectbox("Pilih Kolom Curah Hujan:", df.columns)
 
-df = df[df["Tahun"].isin(selected_year)]
-df = df[df["Bulan"].isin(selected_month)]
+    fig, ax = plt.subplots()
+    ax.plot(df[kolom])
+    ax.set_title(f"Grafik {kolom}")
+    ax.set_xlabel("Index")
+    ax.set_ylabel("Nilai")
+    st.pyplot(fig)
 
-
-# ================== VARIABLES =======================
-possible_vars = ["Tn", "Tx", "Tavg", "kelembaban", "curah_hujan", "matahari", "FF_X", "DDD_X"]
-available_vars = [v for v in possible_vars if v in df.columns]
-
-label = {
-    "Tn": "Suhu Minimum (°C)",
-    "Tx": "Suhu Maksimum (°C)",
-    "Tavg": "Suhu Rata-rata (°C)",
-    "kelembaban": "Kelembaban (%)",
-    "curah_hujan": "Curah Hujan (mm)",
-    "matahari": "Durasi Matahari (jam)",
-    "FF_X": "Kecepatan Angin (m/s)",
-    "DDD_X": "Arah Angin (°)"
-}
-
-
-# ================== AGGREGASI BULANAN =======================
-agg_dict = {v: "mean" for v in available_vars}
-if "curah_hujan" in available_vars:
-    agg_dict["curah_hujan"] = "sum"
-
-monthly = df.groupby(["Tahun","Bulan"]).agg(agg_dict).reset_index()
-
-
-# ================== TRAIN MODEL =======================
-models = {}
-metrics = {}
-
-for v in available_vars:
-    X = monthly[["Tahun","Bulan"]]
-    y = monthly[v]
-    Xtr, Xts, ytr, yts = train_test_split(X, y, test_size=0.2, random_state=42)
-
-    model = RandomForestRegressor(n_estimators=180, random_state=42)
-    model.fit(Xtr, ytr)
-    pred = model.predict(Xts)
-
-    models[v] = model
-    metrics[v] = (mean_squared_error(yts, pred)**0.5, r2_score(yts, pred))
-
-
-# ================== CARD STATISTIK =======================
-c1, c2, c3 = st.columns(3)
-
-with c1:
-    st.markdown(f"""
-    <div class="metric-card">
-        <h4>📏 Data Historis</h4>
-        <h2>{len(df):,}</h2>
-    </div>
-    """, unsafe_allow_html=True)
-
-with c2:
-    st.markdown(f"""
-    <div class="metric-card">
-        <h4>📅 Rentang Tahun</h4>
-        <h2>{df['Tahun'].min()} - {df['Tahun'].max()}</h2>
-    </div>
-    """, unsafe_allow_html=True)
-
-with c3:
-    st.markdown(f"""
-    <div class="metric-card">
-        <h4>📦 Variabel Iklim</h4>
-        <h2>{len(available_vars)}</h2>
-    </div>
-    """, unsafe_allow_html=True)
-
-
-# ================== GRAFIK HISTORIS =======================
-st.subheader("📈 Tren Data Historis")
-
-var_plot = st.selectbox("Pilih Variabel", [label[v] for v in available_vars])
-key = [k for k,v in label.items() if v == var_plot][0]
-
-monthly["Tanggal"] = pd.to_datetime(
-    monthly["Tahun"].astype(str) + "-" + monthly["Bulan"].astype(str) + "-01"
-)
-
-fig1 = px.line(
-    monthly,
-    x="Tanggal",
-    y=key,
-    markers=True,
-    title=var_plot,
-    template="plotly_white",
-    color_discrete_sequence=["#2A6F97"]
-)
-st.plotly_chart(fig1, use_container_width=True)
-
-
-# ================== PREDIKSI 2025–2075 =======================
-future = pd.DataFrame(
-    [(y,m) for y in range(2025,2076) for m in range(1,13)],
-    columns=["Tahun","Bulan"]
-)
-
-for v in available_vars:
-    future[f"Pred_{v}"] = models[v].predict(future[["Tahun","Bulan"]])
-
-st.subheader("🔮 Prediksi 2025–2075")
-
-var_pred = st.selectbox("Pilih Variabel Prediksi", [label[v] for v in available_vars])
-key2 = [k for k,v in label.items() if v == var_pred][0]
-
-future["Tanggal"] = pd.to_datetime(
-    future["Tahun"].astype(str) + "-" + future["Bulan"].astype(str) + "-01"
-)
-
-fig2 = px.line(
-    future,
-    x="Tanggal",
-    y=f"Pred_{key2}",
-    title=f"Prediksi {var_pred}",
-    template="plotly_white",
-    color_discrete_sequence=["#61A5C2"]
-)
-
-st.plotly_chart(fig2, use_container_width=True)
-
-
-# ================== DOWNLOAD =======================
-csv = future.to_csv(index=False).encode("utf8")
-st.download_button(
-    "📥 Download Dataset Prediksi",
-    data=csv,
-    file_name="prediksi_KEPRI.csv",
-    mime="text/csv"
-)
-
-
-
-
-
+elif menu == "Statistik":
+    st.subheader("Statistik Dasar")
+    st.write(df.describe())
 
