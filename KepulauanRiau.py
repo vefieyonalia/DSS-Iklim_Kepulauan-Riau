@@ -10,21 +10,31 @@ st.set_page_config(page_title="📊 Dashboard Prediksi Iklim", layout="wide")
 
 # ========== 1️⃣ LOAD DATA ==========
 @st.cache_data
-def load_data():
-    df = pd.read_excel("KEPRI", sheet_name="Data Harian - Table")
+def load_data(file):
+    df = pd.read_excel(file, sheet_name="Data Harian - Table")
     df = df.loc[:, ~df.columns.duplicated()]
+
+    # handle rename angin
     if "kecepatan_angin" in df.columns:
-        df = df.rename(columns={"kecepatan_angin":"FF_X"})
+        df = df.rename(columns={"kecepatan_angin": "FF_X"})
+
     df["Tanggal"] = pd.to_datetime(df["Tanggal"], dayfirst=True)
     df["Tahun"] = df["Tanggal"].dt.year
     df["Bulan"] = df["Tanggal"].dt.month
     return df
 
-df = load_data()
+
+# UPLOADER
+st.title("🌦️ Dashboard Analisis & Prediksi Iklim — Kepulauan Riau")
+uploaded = st.file_uploader("📂 Upload File Excel Data Cuaca (.xlsx)", type=["xlsx"])
+
+if not uploaded:
+    st.warning("Silakan upload file Excel untuk melanjutkan.")
+    st.stop()
+
+df = load_data(uploaded)
 
 wilayah = "Kepulauan Riau"
-st.title(f"🌦️ Dashboard Analisis & Prediksi Iklim — {wilayah}")
-
 
 # ========== 2️⃣ Sidebar Filter ==========
 st.sidebar.header("🔎 Filter Data")
@@ -59,45 +69,43 @@ label = {
 }
 
 # ========== 3️⃣ Agregasi ==========
-agg_dict = {v:"mean" for v in available_vars}
+agg_dict = {v: "mean" for v in available_vars}
 if "curah_hujan" in available_vars:
     agg_dict["curah_hujan"] = "sum"
 
-monthly = df.groupby(["Tahun","Bulan"]).agg(agg_dict).reset_index()
-
+monthly = df.groupby(["Tahun", "Bulan"]).agg(agg_dict).reset_index()
 
 # ========== 4️⃣ Model ==========
 models = {}
 metrics = {}
 
 for v in available_vars:
-    X = monthly[["Tahun","Bulan"]]
+    X = monthly[["Tahun", "Bulan"]]
     y = monthly[v]
 
     Xtr, Xts, ytr, yts = train_test_split(X, y, test_size=0.2, random_state=42)
 
     m = RandomForestRegressor(n_estimators=180, random_state=42)
-    m.fit(Xtr,ytr)
+    m.fit(Xtr, ytr)
     pred = m.predict(Xts)
 
     models[v] = m
-    metrics[v] = (mean_squared_error(yts,pred)**0.5, r2_score(yts,pred))
+    metrics[v] = (mean_squared_error(yts, pred)**0.5, r2_score(yts, pred))
 
 # ========== 5️⃣ Card Statistik ==========
-c1,c2,c3 = st.columns(3)
+c1, c2, c3 = st.columns(3)
 c1.metric("📏 Data Historis", f"{len(df):,} record")
 c2.metric("📅 Rentang Tahun", f"{df['Tahun'].min()} - {df['Tahun'].max()}")
 c3.metric("📦 Variabel Iklim", len(available_vars))
-
 
 # ========== 6️⃣ Grafik Tren ==========
 st.subheader("📈 Tren Data Historis")
 var_plot = st.selectbox("Pilih Variabel", [label[v] for v in available_vars])
 
-key = [k for k,v in label.items() if v==var_plot][0]
+key = [k for k, v in label.items() if v == var_plot][0]
 
 monthly["Tanggal"] = pd.to_datetime(
-    monthly["Tahun"].astype(str)+"-"+monthly["Bulan"].astype(str)+"-01"
+    monthly["Tahun"].astype(str) + "-" + monthly["Bulan"].astype(str) + "-01"
 )
 
 fig1 = px.line(
@@ -110,18 +118,22 @@ fig1 = px.line(
 )
 st.plotly_chart(fig1, use_container_width=True)
 
-
 # ========== 7️⃣ Prediksi 50 Tahun ==========
-future = pd.DataFrame([(y,m) for y in range(2025,2076) for m in range(1,13)], columns=["Tahun","Bulan"])
+future = pd.DataFrame(
+    [(y, m) for y in range(2025, 2076) for m in range(1, 13)],
+    columns=["Tahun", "Bulan"]
+)
+
 for v in available_vars:
-    future[f"Pred_{v}"] = models[v].predict(future[["Tahun","Bulan"]])
+    future[f"Pred_{v}"] = models[v].predict(future[["Tahun", "Bulan"]])
 
 st.subheader("🔮 Prediksi 2025–2075")
 var_pred = st.selectbox("Pilih Variabel Prediksi", [label[v] for v in available_vars])
 
-key2 = [k for k,v in label.items() if v==var_pred][0]
+key2 = [k for k, v in label.items() if v == var_pred][0]
+
 future["Tanggal"] = pd.to_datetime(
-    future["Tahun"].astype(str)+"-"+future["Bulan"].astype(str)+"-01"
+    future["Tahun"].astype(str) + "-" + future["Bulan"].astype(str) + "-01"
 )
 
 fig2 = px.line(
@@ -133,15 +145,17 @@ fig2 = px.line(
 )
 st.plotly_chart(fig2, use_container_width=True)
 
-
 # ========== 8️⃣ Download ==========
 csv = future.to_csv(index=False).encode("utf8")
 st.download_button(
     "📥 Download Dataset Prediksi",
     data=csv,
-    file_name="prediksi_jawa_timur.csv",
+    file_name="prediksi_kepulauan_riau.csv",
     mime="text/csv"
 )
+
+
+
 
 
 
