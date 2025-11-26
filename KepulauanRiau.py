@@ -142,3 +142,4 @@ st.download_button(
     file_name="prediksi_jawa_timur.csv",
     mime="text/csv"
 )
+
