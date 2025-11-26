@@ -14,7 +14,6 @@ def load_data(file):
     df = pd.read_excel(file, sheet_name="Data Harian - Table")
     df = df.loc[:, ~df.columns.duplicated()]
 
-    # handle rename angin
     if "kecepatan_angin" in df.columns:
         df = df.rename(columns={"kecepatan_angin": "FF_X"})
 
@@ -23,18 +22,15 @@ def load_data(file):
     df["Bulan"] = df["Tanggal"].dt.month
     return df
 
-
-# UPLOADER
 st.title("🌦️ Dashboard Analisis & Prediksi Iklim — Kepulauan Riau")
-uploaded = st.file_uploader("📂 Upload File Excel Data Cuaca (.xlsx)", type=["xlsx"])
+
+uploaded = st.file_uploader("📂 Upload File Excel Data Iklim", type=["xlsx"])
 
 if not uploaded:
-    st.warning("Silakan upload file Excel untuk melanjutkan.")
+    st.warning("Silakan upload file Excel terlebih dahulu.")
     st.stop()
 
 df = load_data(uploaded)
-
-wilayah = "Kepulauan Riau"
 
 # ========== 2️⃣ Sidebar Filter ==========
 st.sidebar.header("🔎 Filter Data")
@@ -54,7 +50,7 @@ selected_month = st.sidebar.multiselect(
 df = df[df["Tahun"].isin(selected_year)]
 df = df[df["Bulan"].isin(selected_month)]
 
-possible_vars = ["Tn","Tx","Tavg","kelembaban","curah_hujan","matahari","FF_X","DDD_X"]
+possible_vars = ["Tn", "Tx", "Tavg", "kelembaban", "curah_hujan", "matahari", "FF_X", "DDD_X"]
 available_vars = [v for v in possible_vars if v in df.columns]
 
 label = {
@@ -101,7 +97,6 @@ c3.metric("📦 Variabel Iklim", len(available_vars))
 # ========== 6️⃣ Grafik Tren ==========
 st.subheader("📈 Tren Data Historis")
 var_plot = st.selectbox("Pilih Variabel", [label[v] for v in available_vars])
-
 key = [k for k, v in label.items() if v == var_plot][0]
 
 monthly["Tanggal"] = pd.to_datetime(
@@ -119,17 +114,13 @@ fig1 = px.line(
 st.plotly_chart(fig1, use_container_width=True)
 
 # ========== 7️⃣ Prediksi 50 Tahun ==========
-future = pd.DataFrame(
-    [(y, m) for y in range(2025, 2076) for m in range(1, 13)],
-    columns=["Tahun", "Bulan"]
-)
+future = pd.DataFrame([(y, m) for y in range(2025, 2076) for m in range(1, 13)], columns=["Tahun", "Bulan"])
 
 for v in available_vars:
     future[f"Pred_{v}"] = models[v].predict(future[["Tahun", "Bulan"]])
 
 st.subheader("🔮 Prediksi 2025–2075")
 var_pred = st.selectbox("Pilih Variabel Prediksi", [label[v] for v in available_vars])
-
 key2 = [k for k, v in label.items() if v == var_pred][0]
 
 future["Tanggal"] = pd.to_datetime(
@@ -153,8 +144,6 @@ st.download_button(
     file_name="prediksi_kepulauan_riau.csv",
     mime="text/csv"
 )
-
-
 
 
 
