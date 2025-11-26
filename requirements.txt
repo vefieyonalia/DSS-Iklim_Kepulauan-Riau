@@ -1,5 +1,7 @@
 streamlit
+plotly
 pandas
-joblib
+numpy
 scikit-learn
-xgboost
+openpyxl
+matplotlib
