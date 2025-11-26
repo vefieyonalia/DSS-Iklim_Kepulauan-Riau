@@ -22,7 +22,7 @@ def load_data():
 
 df = load_data()
 
-wilayah = "Jawa Timur"
+wilayah = "Kepulauan Riau"
 st.title(f"🌦️ Dashboard Analisis & Prediksi Iklim — {wilayah}")
 
 
@@ -142,5 +142,6 @@ st.download_button(
     file_name="prediksi_jawa_timur.csv",
     mime="text/csv"
 )
+
 
 
